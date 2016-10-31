@@ -42,7 +42,6 @@ class Expression;
 class Environment;
 
 typedef unordered_map<string, Expression> EnvMap;
-typedef const vector<Expression*> &Exps;
 typedef Expression(*ProcTypeUnary)(Expression &);
 typedef Expression(*ProcType)(Expression &, Expression &);
 
@@ -51,7 +50,7 @@ Environment *global_env;
 class Expression {
 private:
 	ExpressionTypes type_;
-Environment *env_;
+	Environment *env_;
 public:
 	vector<Expression> list;
 	ProcType proc;
