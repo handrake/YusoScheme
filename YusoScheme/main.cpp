@@ -144,6 +144,13 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list[0].val == "quote") {
 		return exp->list[1];
 	}
+	else if (exp->list[0].val == "if") {
+		Expression cond = eval(&exp->list[1], env);
+		return (cond.val == "#t") ? eval(&exp->list[2], env) : eval(&exp->list[3], env);
+	}
+	else if (exp->list[0].val == "lambda") {
+
+	}
 	else {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name);
