@@ -175,6 +175,12 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		exp->set_env(env);
 		return *exp;
 	}
+	else if (exp->list[0].val == "begin") {
+		for (size_t i = 1; i < exp->list.size() - 1; ++i) {
+			eval(&exp->list[i], env);
+		}
+		return eval(&exp->list[exp->list.size() - 1], env);
+	}
 	else {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name);
@@ -252,7 +258,7 @@ Expression read_from_tokens(list<string> &tokens) {
 }
 
 Expression proc_add(const vector<Expression> &e) {
-	return accumulate(e.begin(), e.end(), Expression(kInt, "0"), DEFINE_PROC_OP(+));
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(+));
 }
 
 Expression proc_sub(const vector<Expression> &e) {
