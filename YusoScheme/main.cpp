@@ -376,8 +376,12 @@ Expression proc_min(const vector<Expression> &e) {
 	return min;
 }
 
-Expression proc_nullp(const vector < Expression> &e) {
+Expression proc_nullp(const vector<Expression> &e) {
 	return (e[0].type == kList && e[0].list.empty()) ? true_sym : false_sym;
+}
+
+Expression proc_numberp(const vector<Expression> &e) {
+	return (e[0].type == kInt || e[0].type == kFloat) ? true_sym : false_sym;
 }
 
 Expression parse(string &program) {
@@ -408,6 +412,7 @@ Environment *standard_env() {
 	env->update("max", &proc_max);
 	env->update("min", &proc_min);
 	env->update("null?", &proc_nullp);
+	env->update("number?", &proc_numberp);
 
 	return env;
 }
