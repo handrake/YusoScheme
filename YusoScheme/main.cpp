@@ -32,6 +32,7 @@ enum ExpressionTypes {
 	kString,
 	kBool,
 	kProc,
+	kProcUnary,
 	kLambda,
 	kList,
 };
@@ -41,6 +42,7 @@ class Environment;
 
 typedef unordered_map<string, Expression> EnvMap;
 typedef const vector<Expression*> &Exps;
+typedef Expression(*ProcTypeUnary)(Expression &);
 typedef Expression(*ProcType)(Expression &, Expression &);
 
 Environment *global_env;
@@ -48,15 +50,17 @@ Environment *global_env;
 class Expression {
 private:
 	ExpressionTypes type_;
-	Environment *env_;
+Environment *env_;
 public:
 	vector<Expression> list;
 	ProcType proc;
+	ProcTypeUnary proc_unary;
 	string val;
 
 	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
 	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
 	Expression(ProcType proc) : type_(kProc), proc(proc) {}
+	Expression(ProcTypeUnary proc) : type_(kProcUnary), proc_unary(proc) {}
 	Expression(bool b) : type_(kBool), env_(nullptr) {
 		this->val = b ? "#t" : "#f";
 	}
@@ -70,7 +74,7 @@ public:
 	}
 
 	friend ostream& operator<<(ostream &os, const Expression &exp) {
-		if (exp.get_type() == kProc) {
+		if (exp.get_type() == kProc || exp.get_type() == kProcUnary) {
 			os << "<Proc>";
 		}
 		else {
@@ -137,14 +141,19 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	}
 	else {
 		auto proc_name = exp->list[0].val;
-		auto proc = env->find(proc_name)->at(proc_name).proc;
-		auto e1 = eval(&exp->list[1]);
+		auto proc = env->find(proc_name)->at(proc_name);
+		if (proc.get_type() == kProc) {
+			auto e1 = eval(&exp->list[1]);
 
-		for (auto i = exp->list.begin() + 2; i != exp->list.end(); ++i) {
-			auto e2 = eval(&*i);
-			e1 = proc(e1, e2);
+			for (auto i = exp->list.begin() + 2; i != exp->list.end(); ++i) {
+				auto e2 = eval(&*i);
+				e1 = proc.proc(e1, e2);
+			}
+			return e1;
 		}
-		return e1;
+		else if (proc.get_type() == kProcUnary) {
+			return proc.proc_unary(eval(&exp->list[1]));
+		}
 	}
 	return *exp;
 }
@@ -223,6 +232,14 @@ Environment *standard_env() {
 	env->update(">", Expression(DEFINE_PROC_COMP_OP(>)));
 	env->update(">=", Expression(DEFINE_PROC_COMP_OP(>=)));
 	env->update("=", Expression(DEFINE_PROC_COMP_OP(==)));
+	env->update("abs", Expression([](Expression &a)->Expression {
+		if (a.get_type() == kInt) {
+			long n = atol(a.val.c_str());
+			return Expression(kInt, to_string(n > 0 ? n : -n));
+		}
+		double d = stod(a.val.c_str());
+		return Expression(kFloat, to_string(d > 0 ? d : -d));
+	}));
 
 	return env;
 }
