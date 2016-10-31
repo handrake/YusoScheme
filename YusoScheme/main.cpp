@@ -141,6 +141,9 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list[0].val == "define") {
 		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
 	}
+	else if (exp->list[0].val == "set!") {
+		return env->find(exp->list[1].val)->at(exp->list[1].val) = eval(&exp->list[2]);
+	}
 	else if (exp->list[0].val == "quote") {
 		return exp->list[1];
 	}
