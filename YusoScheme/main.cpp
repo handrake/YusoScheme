@@ -53,14 +53,14 @@ class Expression {
 private:
 	ExpressionTypes type_;
 	Environment *env_;
-	ProcType proc_;
 public:
 	vector<Expression> list;
+	ProcType proc;
 	string val;
 
 	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
 	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
-	Expression(ProcType proc) : type_(kProc), proc_(proc) {}
+	Expression(ProcType proc) : type_(kProc), proc(proc) {}
 
 	ExpressionTypes get_type() const {
 		return type_;
@@ -71,7 +71,12 @@ public:
 	}
 
 	friend ostream& operator<<(ostream &os, const Expression &exp) {
-		os << exp.val;
+		if (exp.get_type() == kProc) {
+			os << "<Proc>";
+		}
+		else {
+			os << exp.val;
+		}
 		return os;
 	}
 };
