@@ -31,7 +31,7 @@ enum ExpressionTypes {
 class Expression;
 class Environment;
 
-typedef unordered_map<string, Expression*> EnvMap;
+typedef unordered_map<string, Expression> EnvMap;
 typedef const vector<Expression*> &Exps;
 typedef Expression(*ProcType)(Expression &, Expression &);
 
@@ -83,7 +83,7 @@ private:
 
 public:
 	Environment(Environment *other = nullptr) : other_(other) {}
-	void update(const string &var, Expression *exp) {
+	void update(const string &var, Expression exp) {
 		env_map_.insert({ var, exp });
 	}
 	void remove(const string &var) { env_map_.erase(var); }
@@ -100,21 +100,21 @@ public:
 	}
 
 	Expression &operator[] (const string &var) {
-		return *env_map_[var];
+		return env_map_[var];
 	}
 };
 
 Expression eval(Expression *exp, Environment *env = global_env) {
 	if (exp->get_type() == kSymbol)
-		return *env->find(exp->val)->at(exp->val);
+		return env->find(exp->val)->at(exp->val);
 	else if (exp->get_type() != kList) {
 		return *exp;
 	}
 	else if (exp->list.empty()) {
-		return *env->find("nil")->at("nil");
+		return env->find("nil")->at("nil");
 	}
 	else if (exp->list[0].val == "define") {
-		//return env[this->list[1].val] = this->list[2].eval();
+		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
 	}
 	return *exp;
 }
@@ -185,10 +185,10 @@ Expression parse(string &program) {
 Environment *standard_env() {
 	Environment *env = new Environment();
 
-	env->update("+", new Expression(DEFINE_PROC_OP(+)));
-	env->update("-", new Expression(DEFINE_PROC_OP(-)));
-	env->update("*", new Expression(DEFINE_PROC_OP(*)));
-	env->update("/", new Expression(DEFINE_PROC_OP(/)));
+	env->update("+", Expression(DEFINE_PROC_OP(+)));
+	env->update("-", Expression(DEFINE_PROC_OP(-)));
+	env->update("*", Expression(DEFINE_PROC_OP(*)));
+	env->update("/", Expression(DEFINE_PROC_OP(/)));
 
 	return env;
 }
