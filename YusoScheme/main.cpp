@@ -175,10 +175,10 @@ Expression atom(const string &token) {
 	if (regex_match(token, regex("#[tf]"))) {
 		return Expression(kBool, token);
 	}
-	else if (regex_match(token, regex("\\d+"))) {
+	else if (regex_match(token, regex("-?\\d+"))) {
 		return Expression(kInt, token);
 	}
-	else if (regex_match(token, regex("\\d+\\.\\d+"))) {
+	else if (regex_match(token, regex("-?\\d+\\.\\d+"))) {
 		return Expression(kFloat, token);
 	}
 	else if (regex_match(token, regex("\"[^\"]*\""))) {
