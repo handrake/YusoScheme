@@ -121,9 +121,19 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list[0].val == "define") {
 		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
 	}
+	else {
+		auto proc_name = exp->list[0].val;
+		auto proc = env->find(proc_name)->at(proc_name).proc;
+		auto e1 = eval(&exp->list[1]);
+
+		for (auto i = exp->list.begin() + 2; i != exp->list.end(); ++i) {
+			auto e2 = eval(&*i);
+			e1 = proc(e1, e2);
+		}
+		return e1;
+	}
 	return *exp;
 }
-
 
 list<string> tokenize(string &s) {
 	list<string> tokens;
