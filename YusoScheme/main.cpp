@@ -37,18 +37,6 @@ typedef Expression(*ProcType)(Expression &, Expression &);
 
 Environment *global_env;
 
-bool IsPrimitiveType(ExpressionTypes type) {
-	switch (type) {
-	case kSymbol:
-	case kInt:
-	case kFloat:
-	case kString:
-	case kBool:
-		return true;
-	}
-	return false;
-}
-
 class Expression {
 private:
 	ExpressionTypes type_;
