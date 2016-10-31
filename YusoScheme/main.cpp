@@ -376,6 +376,10 @@ Expression proc_min(const vector<Expression> &e) {
 	return min;
 }
 
+Expression proc_nullp(const vector < Expression> &e) {
+	return (e[0].type == kList && e[0].list.empty()) ? true_sym : false_sym;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -403,6 +407,7 @@ Environment *standard_env() {
 	env->update("not", &proc_not);
 	env->update("max", &proc_max);
 	env->update("min", &proc_min);
+	env->update("null?", &proc_nullp);
 
 	return env;
 }
