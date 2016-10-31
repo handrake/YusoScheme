@@ -181,6 +181,10 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		}
 		return eval(&exp->list[exp->list.size() - 1], env);
 	}
+	else if (exp->list[0].val == "show") {
+		env->show();
+		return nil;
+	}
 	else {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name);
