@@ -33,6 +33,7 @@ enum ExpressionTypes {
 	kBool,
 	kProc,
 	kProcUnary,
+	kNil,
 	kLambda,
 	kList,
 };
@@ -77,6 +78,13 @@ public:
 		if (exp.get_type() == kProc || exp.get_type() == kProcUnary) {
 			os << "<Proc>";
 		}
+		else if (exp.get_type() == kList) {
+			os << "<List> ";
+			for (auto &i : exp.list) {
+				os << i << " ";
+			}
+			os << endl;
+		}
 		else {
 			os << exp.val;
 		}
@@ -88,6 +96,7 @@ public:
 
 const Expression true_sym(kBool, "#t");
 const Expression false_sym(kBool, "#f");
+const Expression nil(kNil, "nil");
 
 Expression operator==(const Expression &a, const Expression &b) {
 	if (a.get_type() == b.get_type() && a.val == b.val)
@@ -223,6 +232,7 @@ Expression parse(string &program) {
 Environment *standard_env() {
 	Environment *env = new Environment();
 
+	env->update("nil", nil);
 	env->update("+", Expression(DEFINE_PROC_OP(+)));
 	env->update("-", Expression(DEFINE_PROC_OP(-)));
 	env->update("*", Expression(DEFINE_PROC_OP(*)));
@@ -239,6 +249,12 @@ Environment *standard_env() {
 		}
 		double d = stod(a.val.c_str());
 		return Expression(kFloat, to_string(d > 0 ? d : -d));
+	}));
+	env->update("cons", Expression([](Expression &a, Expression &b)->Expression {
+		Expression exp(kList);
+		exp.list.push_back(a);
+		exp.list.push_back(b);
+		return exp;
 	}));
 
 	return env;
