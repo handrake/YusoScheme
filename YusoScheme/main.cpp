@@ -186,8 +186,7 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		return nil;
 	}
 	else {
-		auto proc_name = exp->list[0].val;
-		auto proc = env->find(proc_name)->at(proc_name);
+		Expression proc(eval(&exp->list[0], env));
 		vector<Expression> args;
 
 		for (auto &i = exp->list.begin() + 1; i != exp->list.end(); ++i) {
