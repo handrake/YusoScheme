@@ -6,9 +6,10 @@
 #include <functional>
 #include <string>
 #include <regex>
+#include <numeric>
 
 #define DEFINE_PROC_OP(op)																	\
-([](Expression &a, Expression &b)->Expression {												\
+([](const Expression &a, const Expression &b)->Expression {									\
 	if (a.get_type() == b.get_type() == kInt) {												\
 		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str())));		\
 	}																						\
@@ -16,7 +17,7 @@
 })
 
 #define DEFINE_PROC_COMP_OP(op)																\
-([](Expression &a, Expression &b)->Expression {												\
+([](const Expression &a, const Expression &b)->Expression {									\
 	if (a.get_type() == b.get_type() == kInt) {												\
 		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str())));					\
 	}																						\
@@ -42,8 +43,7 @@ class Expression;
 class Environment;
 
 typedef unordered_map<string, Expression> EnvMap;
-typedef Expression(*ProcTypeUnary)(Expression &);
-typedef Expression(*ProcType)(Expression &, Expression &);
+typedef Expression(*ProcType)(const vector<Expression> &);
 
 Environment *global_env;
 
@@ -54,13 +54,11 @@ private:
 public:
 	vector<Expression> list;
 	ProcType proc;
-	ProcTypeUnary proc_unary;
 	string val;
 
 	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
 	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
 	Expression(ProcType proc) : type_(kProc), proc(proc) {}
-	Expression(ProcTypeUnary proc) : type_(kProcUnary), proc_unary(proc) {}
 	Expression(bool b) : type_(kBool), env_(nullptr) {
 		this->val = b ? "#t" : "#f";
 	}
@@ -151,16 +149,11 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name);
 		if (proc.get_type() == kProc) {
-			auto e1 = eval(&exp->list[1]);
-
-			for (auto i = exp->list.begin() + 2; i != exp->list.end(); ++i) {
-				auto e2 = eval(&*i);
-				e1 = proc.proc(e1, e2);
+			vector<Expression> args;
+			for (auto &i = exp->list.begin() + 1; i != exp->list.end(); ++i) {
+				args.push_back(eval(&*i, env));
 			}
-			return e1;
-		}
-		else if (proc.get_type() == kProcUnary) {
-			return proc.proc_unary(eval(&exp->list[1]));
+			return proc.proc(args);
 		}
 	}
 	return *exp;
@@ -224,6 +217,87 @@ Expression read_from_tokens(list<string> &tokens) {
 	return atom(token);
 }
 
+Expression proc_add(const vector<Expression> &e) {
+	return accumulate(e.begin(), e.end(), Expression(kInt, "0"), DEFINE_PROC_OP(+));
+}
+
+Expression proc_sub(const vector<Expression> &e) {
+	return accumulate(e.begin(), e.end(), Expression(kInt, "0"), DEFINE_PROC_OP(-));
+}
+
+Expression proc_mul(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(*));
+}
+
+Expression proc_div(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(/));
+}
+
+Expression proc_greater(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(<));
+}
+
+Expression proc_greater_equal(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(<=));
+}
+
+Expression proc_less(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(>));
+}
+
+Expression proc_less_equal(const vector<Expression> &e) {
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(>=));
+}
+
+Expression proc_equal(const vector<Expression> &e) {
+	auto &head = e.front();
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
+		if (head.get_type() != i->get_type() || head.val != i->val)
+			return false_sym;
+	}
+	return true_sym;
+}
+
+Expression proc_abs(const vector<Expression> &e) {
+	if (e.front().get_type() == kInt) {
+		long n = atol(e.front().val.c_str());
+		return Expression(kInt, to_string(n > 0 ? n : -n));
+	}
+	double d = stod(e.front().val.c_str());
+	return Expression(kFloat, to_string(d > 0 ? d : -d));
+}
+
+Expression proc_cons(const vector<Expression> &e) {
+	Expression exp(kList);
+	exp.list = e;
+	return exp;
+}
+
+Expression proc_car(const vector<Expression> &e) {
+	return e[0].list[0];
+}
+
+Expression proc_cdr(const vector<Expression> &e) {
+	if (e[0].list.size() < 2)
+		return nil;
+	Expression exp(kList);
+	exp.list = e[0].list;
+	exp.list.erase(exp.list.begin());
+	return exp;
+}
+
+Expression proc_length(const vector<Expression> &e) {
+	return Expression(kInt, to_string(e[0].list.size()));
+}
+
+Expression proc_listp(const vector<Expression> &e) {
+	return e[0].get_type() == kList ? true_sym : false_sym;
+}
+
+Expression proc_symbolp(const vector<Expression> &e) {
+	return e[0].get_type() == kSymbol ? true_sym : false_sym;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -232,29 +306,23 @@ Environment *standard_env() {
 	Environment *env = new Environment();
 
 	env->update("nil", nil);
-	env->update("+", Expression(DEFINE_PROC_OP(+)));
-	env->update("-", Expression(DEFINE_PROC_OP(-)));
-	env->update("*", Expression(DEFINE_PROC_OP(*)));
-	env->update("/", Expression(DEFINE_PROC_OP(/)));
-	env->update("<", Expression(DEFINE_PROC_COMP_OP(<)));
-	env->update("<=", Expression(DEFINE_PROC_COMP_OP(<=)));
-	env->update(">", Expression(DEFINE_PROC_COMP_OP(>)));
-	env->update(">=", Expression(DEFINE_PROC_COMP_OP(>=)));
-	env->update("=", Expression(DEFINE_PROC_COMP_OP(==)));
-	env->update("abs", Expression([](Expression &a)->Expression {
-		if (a.get_type() == kInt) {
-			long n = atol(a.val.c_str());
-			return Expression(kInt, to_string(n > 0 ? n : -n));
-		}
-		double d = stod(a.val.c_str());
-		return Expression(kFloat, to_string(d > 0 ? d : -d));
-	}));
-	env->update("cons", Expression([](Expression &a, Expression &b)->Expression {
-		Expression exp(kList);
-		exp.list.push_back(a);
-		exp.list.push_back(b);
-		return exp;
-	}));
+	env->update("+", &proc_add);
+	env->update("-", &proc_sub);
+	env->update("*", &proc_mul);
+	env->update("/", &proc_div);
+	env->update("<", &proc_greater);
+	env->update("<=", &proc_greater_equal);
+	env->update(">", &proc_less);
+	env->update(">=", &proc_less_equal);
+	env->update("=", &proc_equal);
+	env->update("abs", &proc_abs);
+	env->update("cons", &proc_cons);
+	env->update("car", &proc_car);
+	env->update("cdr", &proc_cdr);
+	env->update("list", &proc_cons);
+	env->update("list?", &proc_listp);
+	env->update("length", &proc_length);
+	env->update("symbol?", &proc_symbolp);
 
 	return env;
 }
