@@ -248,7 +248,7 @@ Expression proc_add(const vector<Expression> &e) {
 }
 
 Expression proc_sub(const vector<Expression> &e) {
-	return accumulate(e.begin(), e.end(), Expression(kInt, "0"), DEFINE_PROC_OP(-));
+	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(-));
 }
 
 Expression proc_mul(const vector<Expression> &e) {
