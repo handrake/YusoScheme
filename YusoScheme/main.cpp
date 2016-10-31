@@ -31,8 +31,8 @@ enum ExpressionTypes {
 class Expression;
 class Environment;
 
-typedef std::unordered_map<std::string, Expression*> EnvMap;
-typedef const std::vector<Expression*> &Exps;
+typedef unordered_map<string, Expression*> EnvMap;
+typedef const vector<Expression*> &Exps;
 typedef Expression(*ProcType)(Expression &, Expression &);
 
 Environment *global_env;
