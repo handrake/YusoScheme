@@ -8,11 +8,19 @@
 #include <regex>
 
 #define DEFINE_PROC_OP(op)																	\
-	([](Expression &a, Expression &b)->Expression {											\
-		if (a.get_type() == b.get_type() == kInt) {											\
-			return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str())));	\
-		}																					\
+([](Expression &a, Expression &b)->Expression {												\
+	if (a.get_type() == b.get_type() == kInt) {												\
+		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str())));		\
+	}																						\
 	return Expression(kFloat, to_string(stod(a.val.c_str()) op stod(b.val.c_str())));		\
+})
+
+#define DEFINE_PROC_COMP_OP(op)																\
+([](Expression &a, Expression &b)->Expression {												\
+	if (a.get_type() == b.get_type() == kInt) {												\
+		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str())));					\
+	}																						\
+	return Expression((stod(a.val.c_str())) op (stod(b.val.c_str())));						\
 })
 
 using namespace std;
@@ -49,6 +57,9 @@ public:
 	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
 	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
 	Expression(ProcType proc) : type_(kProc), proc(proc) {}
+	Expression(bool b) : type_(kBool), env_(nullptr) {
+		this->val = b ? "#t" : "#f";
+	}
 
 	ExpressionTypes get_type() const {
 		return type_;
@@ -67,7 +78,18 @@ public:
 		}
 		return os;
 	}
+
+	friend Expression operator==(const Expression &a, const Expression &b);
 };
+
+const Expression true_sym(kBool, "#t");
+const Expression false_sym(kBool, "#f");
+
+Expression operator==(const Expression &a, const Expression &b) {
+	if (a.get_type() == b.get_type() && a.val == b.val)
+		return true_sym;
+	return false_sym;
+}
 
 class Environment {
 private:
@@ -196,6 +218,11 @@ Environment *standard_env() {
 	env->update("-", Expression(DEFINE_PROC_OP(-)));
 	env->update("*", Expression(DEFINE_PROC_OP(*)));
 	env->update("/", Expression(DEFINE_PROC_OP(/)));
+	env->update("<", Expression(DEFINE_PROC_COMP_OP(<)));
+	env->update("<=", Expression(DEFINE_PROC_COMP_OP(<=)));
+	env->update(">", Expression(DEFINE_PROC_COMP_OP(>)));
+	env->update(">=", Expression(DEFINE_PROC_COMP_OP(>=)));
+	env->update("=", Expression(DEFINE_PROC_COMP_OP(==)));
 
 	return env;
 }
