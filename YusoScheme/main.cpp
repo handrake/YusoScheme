@@ -7,6 +7,7 @@
 #include <string>
 #include <regex>
 #include <numeric>
+#include <cmath>
 
 #define DEFINE_PROC_OP(op) \
 ([](const Expression &a, const Expression &b)->Expression { \
@@ -384,6 +385,27 @@ Expression proc_numberp(const vector<Expression> &e) {
 	return (e[0].type == kInt || e[0].type == kFloat) ? true_sym : false_sym;
 }
 
+Expression proc_floor(const vector<Expression>&e) {
+	if (e[0].type == kFloat) {
+		return Expression(kFloat, to_string(floor(stod(e[0].val))));
+	}
+	return nil;
+}
+
+Expression proc_round(const vector<Expression>&e) {
+	if (e[0].type == kFloat) {
+		return Expression(kFloat, to_string(round(stod(e[0].val))));
+	}
+	return nil;
+}
+
+Expression proc_ceil(const vector<Expression>&e) {
+	if (e[0].type == kFloat) {
+		return Expression(kFloat, to_string(ceil(stod(e[0].val))));
+	}
+	return nil;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -413,6 +435,9 @@ Environment *standard_env() {
 	env->update("min", &proc_min);
 	env->update("null?", &proc_nullp);
 	env->update("number?", &proc_numberp);
+	env->update("floor", &proc_floor);
+	env->update("round", &proc_round);
+	env->update("ceil", &proc_ceil);
 
 	return env;
 }
