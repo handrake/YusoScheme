@@ -146,6 +146,9 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list.empty()) {
 		return env->find("nil")->at("nil");
 	}
+	else if (exp->list[0].val == "symbol?") {
+		return (env->find(exp->list[1].val) != nullptr) ? true_sym : false_sym;
+	}
 	else if (exp->list[0].val == "define") {
 		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
 	}
@@ -317,10 +320,6 @@ Expression proc_listp(const vector<Expression> &e) {
 	return e[0].type == kList ? true_sym : false_sym;
 }
 
-Expression proc_symbolp(const vector<Expression> &e) {
-	return e[0].type == kSymbol ? true_sym : false_sym;
-}
-
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -345,7 +344,6 @@ Environment *standard_env() {
 	env->update("list", &proc_cons);
 	env->update("list?", &proc_listp);
 	env->update("length", &proc_length);
-	env->update("symbol?", &proc_symbolp);
 
 	return env;
 }
