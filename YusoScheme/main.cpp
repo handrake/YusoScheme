@@ -122,6 +122,9 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list[0].val == "define") {
 		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
 	}
+	else if (exp->list[0].val == "quote") {
+		return exp->list[1];
+	}
 	else {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name).proc;
