@@ -327,6 +327,13 @@ Expression proc_listp(const vector<Expression> &e) {
 	return e[0].type == kList ? true_sym : false_sym;
 }
 
+Expression proc_not(const vector<Expression> &e) {
+	if (e[0].type == kBool) {
+		return (e[0].val == "#f") ? true_sym : false_sym;
+	}
+	return nil;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -351,6 +358,7 @@ Environment *standard_env() {
 	env->update("list", &proc_cons);
 	env->update("list?", &proc_listp);
 	env->update("length", &proc_length);
+	env->update("not", &proc_not);
 
 	return env;
 }
