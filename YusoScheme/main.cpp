@@ -11,9 +11,9 @@
 #define DEFINE_PROC_OP(op) \
 ([](const Expression &a, const Expression &b)->Expression { \
 	if (a.type == b.type == kInt) { \
-		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str()))); \
+		return Expression(kInt, to_string((atol(a.val.c_str())) op (atol(b.val.c_str())))); \
 	} \
-	return Expression(kFloat, to_string(stod(a.val.c_str()) op stod(b.val.c_str()))); \
+	return Expression(kFloat, to_string((stod(a.val.c_str())) op (stod(b.val.c_str())))); \
 })
 
 #define DEFINE_PROC_COMP_OP(op) \
