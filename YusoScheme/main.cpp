@@ -114,6 +114,7 @@ public:
 		for (size_t i = 0; i < params.size(); ++i) {
 			env_map_[params[i].val] = args[i];
 		}
+		this->show();
 	}
 	void update(const string &var, Expression exp) {
 		env_map_.insert({ var, exp });
@@ -129,6 +130,12 @@ public:
 			return outer_->find(var);
 		}
 		return nullptr;
+	}
+
+	void show() {
+		for (auto &i : env_map_) {
+			cout << i.first << ": " << i.second << endl;
+		}
 	}
 
 	Expression &operator[] (const string &var) {
@@ -150,10 +157,10 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		return (env->find(exp->list[1].val) != nullptr) ? true_sym : false_sym;
 	}
 	else if (exp->list[0].val == "define") {
-		return (*env)[exp->list[1].val] = eval(&exp->list[2]);
+		return (*env)[exp->list[1].val] = eval(&exp->list[2], env);
 	}
 	else if (exp->list[0].val == "set!") {
-		return env->find(exp->list[1].val)->at(exp->list[1].val) = eval(&exp->list[2]);
+		return env->find(exp->list[1].val)->at(exp->list[1].val) = eval(&exp->list[2], env);
 	}
 	else if (exp->list[0].val == "quote") {
 		return exp->list[1];
