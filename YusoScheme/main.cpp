@@ -110,8 +110,9 @@ public:
 };
 
 Expression eval(Expression *exp, Environment *env = global_env) {
-	if (exp->get_type() == kSymbol)
+	if (exp->get_type() == kSymbol) {
 		return env->find(exp->val)->at(exp->val);
+	}
 	else if (exp->get_type() != kList) {
 		return *exp;
 	}
