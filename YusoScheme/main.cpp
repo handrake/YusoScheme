@@ -8,20 +8,20 @@
 #include <regex>
 #include <numeric>
 
-#define DEFINE_PROC_OP(op)																	\
-([](const Expression &a, const Expression &b)->Expression {									\
-	if (a.get_type() == b.get_type() == kInt) {												\
-		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str())));		\
-	}																						\
-	return Expression(kFloat, to_string(stod(a.val.c_str()) op stod(b.val.c_str())));		\
+#define DEFINE_PROC_OP(op) \
+([](const Expression &a, const Expression &b)->Expression { \
+	if (a.get_type() == b.get_type() == kInt) { \
+		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str()))); \
+	} \
+	return Expression(kFloat, to_string(stod(a.val.c_str()) op stod(b.val.c_str()))); \
 })
 
-#define DEFINE_PROC_COMP_OP(op)																\
-([](const Expression &a, const Expression &b)->Expression {									\
-	if (a.get_type() == b.get_type() == kInt) {												\
-		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str())));					\
-	}																						\
-	return Expression((stod(a.val.c_str())) op (stod(b.val.c_str())));						\
+#define DEFINE_PROC_COMP_OP(op) \
+([](const Expression &a, const Expression &b)->Expression { \
+	if (a.get_type() == b.get_type() == kInt) { \
+		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str()))); \
+	} \
+	return Expression((stod(a.val.c_str())) op (stod(b.val.c_str()))); \
 })
 
 using namespace std;
