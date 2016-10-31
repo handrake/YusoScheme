@@ -334,6 +334,48 @@ Expression proc_not(const vector<Expression> &e) {
 	return nil;
 }
 
+Expression proc_max(const vector<Expression> &e) {
+	Expression max(e[0]);
+	for (auto &i : e) {
+		if (max.type == i.type == kInt) {
+			if (atol(max.val.c_str()) < atol(i.val.c_str())) {
+				max.val = i.val;
+			}
+		}
+		else if (stod(max.val.c_str()) < stod(i.val.c_str())) {
+			max.val = i.val;
+			if (max.type == kInt) {
+				max.type = kFloat;
+			}
+			else if (i.type == kInt) {
+				max.type = kInt;
+			}
+		}
+	}
+	return max;
+}
+
+Expression proc_min(const vector<Expression> &e) {
+	Expression min(e[0]);
+	for (auto &i : e) {
+		if (min.type == i.type == kInt) {
+			if (atol(min.val.c_str()) > atol(i.val.c_str())) {
+				min.val = i.val;
+			}
+		}
+		else if (stod(min.val.c_str()) > stod(i.val.c_str())) {
+			min.val = i.val;
+			if (min.type == kInt) {
+				min.type = kFloat;
+			}
+			else if (i.type == kInt) {
+				min.type = kInt;
+			}
+		}
+	}
+	return min;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -359,6 +401,8 @@ Environment *standard_env() {
 	env->update("list?", &proc_listp);
 	env->update("length", &proc_length);
 	env->update("not", &proc_not);
+	env->update("max", &proc_max);
+	env->update("min", &proc_min);
 
 	return env;
 }
