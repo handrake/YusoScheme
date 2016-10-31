@@ -33,7 +33,6 @@ enum ExpressionTypes {
 	kString,
 	kBool,
 	kProc,
-	kProcUnary,
 	kNil,
 	kLambda,
 	kList,
@@ -72,7 +71,7 @@ public:
 	}
 
 	friend ostream& operator<<(ostream &os, const Expression &exp) {
-		if (exp.get_type() == kProc || exp.get_type() == kProcUnary) {
+		if (exp.get_type() == kProc) {
 			os << "<Proc>";
 		}
 		else if (exp.get_type() == kList) {
