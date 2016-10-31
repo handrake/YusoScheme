@@ -6,9 +6,6 @@
 #include <functional>
 #include <string>
 #include <regex>
-#include "common.h"
-#include "environment.h"
-#include "expression.h"
 
 #define DEFINE_PROC_OP(op)																	\
 	([](Expression &a, Expression &b)->Expression {											\
@@ -20,8 +17,23 @@
 
 using namespace std;
 
+enum ExpressionTypes {
+	kSymbol = 0,
+	kInt,
+	kFloat,
+	kString,
+	kBool,
+	kProc,
+	kLambda,
+	kList,
+};
+
 class Expression;
 class Environment;
+
+typedef std::unordered_map<std::string, Expression*> EnvMap;
+typedef const std::vector<Expression*> &Exps;
+typedef Expression(*ProcType)(Expression &, Expression &);
 
 Environment *global_env;
 
@@ -36,6 +48,34 @@ bool IsPrimitiveType(ExpressionTypes type) {
 	}
 	return false;
 }
+
+class Environment {
+private:
+	Environment *other_;
+	EnvMap env_map_;
+
+public:
+	Environment(Environment *other = nullptr) : other_(other) {}
+	void update(const string &var, Expression *exp) {
+		env_map_.insert({ var, exp });
+	}
+	void remove(const string &var) { env_map_.erase(var); }
+
+	EnvMap *find(const string &var) {
+		auto result = env_map_.find(var);
+		if (result != env_map_.end()) {
+			return &env_map_;
+		}
+		if (other_ != nullptr) {
+			return other_->find(var);
+		}
+		return nullptr;
+	}
+
+	Expression &operator[] (const string &var) {
+		return *env_map_[var];
+	}
+};
 
 list<string> tokenize(string &s) {
 	list<string> tokens;
@@ -58,6 +98,47 @@ list<string> tokenize(string &s) {
 
 	return tokens;
 }
+
+class Expression {
+private:
+	ExpressionTypes type_;
+	Environment *env_;
+	ProcType proc_;
+public:
+	vector<Expression> list;
+	string val;
+
+	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
+	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
+	Expression(ProcType proc) : type_(kProc), proc_(proc) {}
+
+	ExpressionTypes get_type() const {
+		return type_;
+	}
+
+	void set_env(Environment *env) {
+		env_ = env;
+	}
+
+	Expression eval(Environment *env = global_env) {
+		if (this->get_type() == kSymbol)
+			return *env->find(this->val)->at(this->val);
+		else if (this->get_type() != kList) {
+			return *this;
+		}
+		else if (this->list.empty()) {
+			return *env->find("nil")->at("nil");
+		}
+		else if (this->list[0].val == "define") {
+			//return env[this->list[1].val] = this->list[2].eval();
+		}
+		return *this;
+	}
+	friend ostream& operator<<(ostream &os, const Expression &exp) {
+		os << exp.val;
+		return os;
+	}
+};
 
 Expression atom(const string &token) {
 	if (regex_match(token, regex("#[tf]"))) {
@@ -102,10 +183,10 @@ Expression parse(string &program) {
 Environment *standard_env() {
 	Environment *env = new Environment();
 
-	env->update("+", Expression(DEFINE_PROC_OP(+)));
-	env->update("-", Expression(DEFINE_PROC_OP(-)));
-	env->update("*", Expression(DEFINE_PROC_OP(*)));
-	env->update("/", Expression(DEFINE_PROC_OP(/)));
+	env->update("+", new Expression(DEFINE_PROC_OP(+)));
+	env->update("-", new Expression(DEFINE_PROC_OP(-)));
+	env->update("*", new Expression(DEFINE_PROC_OP(*)));
+	env->update("/", new Expression(DEFINE_PROC_OP(/)));
 
 	return env;
 }
