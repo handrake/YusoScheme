@@ -10,7 +10,7 @@
 
 #define DEFINE_PROC_OP(op) \
 ([](const Expression &a, const Expression &b)->Expression { \
-	if (a.get_type() == b.get_type() == kInt) { \
+	if (a.type == b.type == kInt) { \
 		return Expression(kInt, to_string(atol(a.val.c_str()) op atol(b.val.c_str()))); \
 	} \
 	return Expression(kFloat, to_string(stod(a.val.c_str()) op stod(b.val.c_str()))); \
@@ -18,7 +18,7 @@
 
 #define DEFINE_PROC_COMP_OP(op) \
 ([](const Expression &a, const Expression &b)->Expression { \
-	if (a.get_type() == b.get_type() == kInt) { \
+	if (a.type == b.type == kInt) { \
 		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str()))); \
 	} \
 	return Expression((stod(a.val.c_str())) op (stod(b.val.c_str()))); \
@@ -48,38 +48,41 @@ Environment *global_env;
 
 class Expression {
 private:
-	ExpressionTypes type_;
 	Environment *env_;
 public:
 	vector<Expression> list;
+	ExpressionTypes type;
 	ProcType proc;
 	string val;
 
-	Expression(ExpressionTypes type = kSymbol) : type_(type), env_(nullptr) {}
-	Expression(ExpressionTypes type, const string &val) : type_(type), val(val), env_(nullptr) {}
-	Expression(ProcType proc) : type_(kProc), proc(proc) {}
-	Expression(bool b) : type_(kBool), env_(nullptr) {
+	Expression(ExpressionTypes type = kSymbol) : type(type), env_(nullptr) {}
+	Expression(ExpressionTypes type, const string &val) : type(type), val(val), env_(nullptr) {}
+	Expression(ProcType proc) : type(kProc), proc(proc) {}
+	Expression(bool b) : type(kBool), env_(nullptr) {
 		this->val = b ? "#t" : "#f";
-	}
-
-	ExpressionTypes get_type() const {
-		return type_;
 	}
 
 	void set_env(Environment *env) {
 		env_ = env;
 	}
 
+	Environment *get_env() const {
+		return env_;
+	}
+
 	friend ostream& operator<<(ostream &os, const Expression &exp) {
-		if (exp.get_type() == kProc) {
+		if (exp.type == kProc) {
 			os << "<Proc>";
 		}
-		else if (exp.get_type() == kList) {
+		else if (exp.type == kList) {
 			os << "<List> ";
 			for (auto &i : exp.list) {
 				os << i << " ";
 			}
 			os << endl;
+		}
+		else if (exp.type == kLambda) {
+			os << "<Lambda>";
 		}
 		else {
 			os << exp.val;
@@ -95,18 +98,23 @@ const Expression false_sym(kBool, "#f");
 const Expression nil(kNil, "nil");
 
 Expression operator==(const Expression &a, const Expression &b) {
-	if (a.get_type() == b.get_type() && a.val == b.val)
+	if (a.type == b.type && a.val == b.val)
 		return true_sym;
 	return false_sym;
 }
 
 class Environment {
 private:
-	Environment *other_;
+	Environment *outer_;
 	EnvMap env_map_;
 
 public:
-	Environment(Environment *other = nullptr) : other_(other) {}
+	Environment(Environment *outer = nullptr) : outer_(outer) {}
+	Environment(vector<Expression> &params, vector<Expression> &args, Environment *outer) : outer_(outer) {
+		for (size_t i = 0; i < params.size(); ++i) {
+			env_map_[params[i].val] = args[i];
+		}
+	}
 	void update(const string &var, Expression exp) {
 		env_map_.insert({ var, exp });
 	}
@@ -117,8 +125,8 @@ public:
 		if (result != env_map_.end()) {
 			return &env_map_;
 		}
-		if (other_ != nullptr) {
-			return other_->find(var);
+		if (outer_ != nullptr) {
+			return outer_->find(var);
 		}
 		return nullptr;
 	}
@@ -129,10 +137,10 @@ public:
 };
 
 Expression eval(Expression *exp, Environment *env = global_env) {
-	if (exp->get_type() == kSymbol) {
+	if (exp->type == kSymbol) {
 		return env->find(exp->val)->at(exp->val);
 	}
-	else if (exp->get_type() != kList) {
+	else if (exp->type != kList) {
 		return *exp;
 	}
 	else if (exp->list.empty()) {
@@ -152,16 +160,22 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		return (cond.val == "#t") ? eval(&exp->list[2], env) : eval(&exp->list[3], env);
 	}
 	else if (exp->list[0].val == "lambda") {
-
+		exp->type = kLambda;
+		exp->set_env(env);
+		return *exp;
 	}
 	else {
 		auto proc_name = exp->list[0].val;
 		auto proc = env->find(proc_name)->at(proc_name);
-		if (proc.get_type() == kProc) {
-			vector<Expression> args;
-			for (auto &i = exp->list.begin() + 1; i != exp->list.end(); ++i) {
-				args.push_back(eval(&*i, env));
-			}
+		vector<Expression> args;
+
+		for (auto &i = exp->list.begin() + 1; i != exp->list.end(); ++i) {
+			args.push_back(eval(&*i, env));
+		}
+		if (proc.type == kLambda) {
+			return eval(&proc.list[2], new Environment(proc.list[1].list, args, proc.get_env()));
+		}
+		else if (proc.type == kProc) {
 			return proc.proc(args);
 		}
 	}
@@ -261,14 +275,14 @@ Expression proc_less_equal(const vector<Expression> &e) {
 Expression proc_equal(const vector<Expression> &e) {
 	auto &head = e.front();
 	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.get_type() != i->get_type() || head.val != i->val)
+		if (head.type != i->type || head.val != i->val)
 			return false_sym;
 	}
 	return true_sym;
 }
 
 Expression proc_abs(const vector<Expression> &e) {
-	if (e.front().get_type() == kInt) {
+	if (e.front().type == kInt) {
 		long n = atol(e.front().val.c_str());
 		return Expression(kInt, to_string(n > 0 ? n : -n));
 	}
@@ -300,11 +314,11 @@ Expression proc_length(const vector<Expression> &e) {
 }
 
 Expression proc_listp(const vector<Expression> &e) {
-	return e[0].get_type() == kList ? true_sym : false_sym;
+	return e[0].type == kList ? true_sym : false_sym;
 }
 
 Expression proc_symbolp(const vector<Expression> &e) {
-	return e[0].get_type() == kSymbol ? true_sym : false_sym;
+	return e[0].type == kSymbol ? true_sym : false_sym;
 }
 
 Expression parse(string &program) {
