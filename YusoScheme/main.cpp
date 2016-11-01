@@ -454,6 +454,22 @@ Expression proc_filter(const vector<Expression> &e) {
 	return exp;
 }
 
+Expression proc_apply(const vector<Expression> &e) {
+	Expression proc(eval(const_cast<Expression*>(&e[0]), e[0].get_env()));
+	Expression apply_list = eval(const_cast<Expression*>(&e[1]), e[1].get_env());
+	Expression exp(apply_list.list[0]);
+	for (size_t i = 1; i < apply_list.list.size(); ++i) {
+		vector<Expression> args = { exp, eval(&apply_list.list[i], proc.get_env()) };
+		if (proc.type == kLambda) {
+			exp = eval(&proc.list[2], new Environment(proc.list[1].list, args, proc.get_env()));
+		}
+		else if (proc.type == kProc) {
+			exp = proc.proc(args);
+		}
+	}
+	return exp;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -487,8 +503,9 @@ Environment *standard_env() {
 	env->update("round", &proc_round);
 	env->update("ceil", &proc_ceil);
 	env->update("procedure?", &proc_procedurep);
-	env->update("map", &proc_map);
+	env->update("map", &proc_map);	
 	env->update("filter", &proc_filter);
+	env->update("apply", &proc_apply);
 
 	return env;
 }
