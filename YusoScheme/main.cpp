@@ -470,6 +470,10 @@ Expression proc_apply(const vector<Expression> &e) {
 	return exp;
 }
 
+Expression proc_pairp(const vector<Expression> &e) {
+	return (e[0].type == kList && e[0].list.size() == 2);
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -506,6 +510,7 @@ Environment *standard_env() {
 	env->update("map", &proc_map);	
 	env->update("filter", &proc_filter);
 	env->update("apply", &proc_apply);
+	env->update("pair?", &proc_pairp);
 
 	return env;
 }
