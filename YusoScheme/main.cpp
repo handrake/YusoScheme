@@ -484,6 +484,14 @@ Expression proc_list_ref(const vector<Expression> &e) {
 	return nil;
 }
 
+Expression proc_reverse(const vector<Expression> &e) {
+	Expression exp(kList);
+	for (auto &i = e[0].list.crbegin(); i != e[0].list.crend(); ++i) {
+		exp.list.push_back(*i);
+	}
+	return exp;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -522,6 +530,7 @@ Environment *standard_env() {
 	env->update("apply", &proc_apply);
 	env->update("pair?", &proc_pairp);
 	env->update("list-ref", &proc_list_ref);
+	env->update("reverse", &proc_reverse);
 
 	return env;
 }
