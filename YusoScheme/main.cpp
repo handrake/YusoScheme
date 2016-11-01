@@ -474,6 +474,16 @@ Expression proc_pairp(const vector<Expression> &e) {
 	return (e[0].type == kList && e[0].list.size() == 2);
 }
 
+Expression proc_list_ref(const vector<Expression> &e) {
+	if (e[0].type == kList && e[1].type == kInt) {
+		long n = atol(e[1].val.c_str());
+		if (e[0].list.size() > n && n >= 0) {
+			return e[0].list[n];
+		}
+	}
+	return nil;
+}
+
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
 }
@@ -511,6 +521,7 @@ Environment *standard_env() {
 	env->update("filter", &proc_filter);
 	env->update("apply", &proc_apply);
 	env->update("pair?", &proc_pairp);
+	env->update("list-ref", &proc_list_ref);
 
 	return env;
 }
