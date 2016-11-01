@@ -185,6 +185,21 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		env->show();
 		return nil;
 	}
+	else if (exp->list[0].val == "map") {
+		Expression proc(eval(&exp->list[1], env));
+		Expression apply_list = eval(&exp->list[2], env);
+
+		for (auto &i : apply_list.list) {
+			vector<Expression> args = { eval(&i, env) };
+			if (proc.type == kLambda) {
+				i = eval(&proc.list[2], new Environment(proc.list[1].list, args, proc.get_env()));
+			}
+			else if (proc.type == kProc) {
+				i = proc.proc(args);
+			}
+		}
+		return apply_list;
+	}
 	else {
 		Expression proc(eval(&exp->list[0], env));
 		vector<Expression> args;
@@ -418,7 +433,6 @@ Expression proc_ceil(const vector<Expression> &e) {
 Expression proc_procedurep(const vector<Expression> &e) {
 	return (e[0].type == kProc || e[0].type == kLambda) ? true_sym : false_sym;
 }
-
 
 Expression parse(string &program) {
 	return read_from_tokens(tokenize(program));
