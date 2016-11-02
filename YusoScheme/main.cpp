@@ -8,21 +8,17 @@
 #include <regex>
 #include <numeric>
 #include <cmath>
+#include <boost/variant.hpp>
+#include <boost/functional/hash.hpp>
 
 #define DEFINE_PROC_OP(op) \
 ([](const Expression &a, const Expression &b)->Expression { \
-	if (a.type == b.type == kInt) { \
-		return Expression(kInt, to_string((atol(a.val.c_str())) op (atol(b.val.c_str())))); \
+	if (a.type == kInt && b.type == kInt) { \
+		return Expression(kInt, (boost::get<long>(a.val)) op (boost::get<long>(b.val))); \
 	} \
-	return Expression(kFloat, to_string((stod(a.val.c_str())) op (stod(b.val.c_str())))); \
-})
-
-#define DEFINE_PROC_COMP_OP(op) \
-([](const Expression &a, const Expression &b)->Expression { \
-	if (a.type == b.type == kInt) { \
-		return Expression((atol(a.val.c_str())) op (atol(b.val.c_str()))); \
-	} \
-	return Expression((stod(a.val.c_str())) op (stod(b.val.c_str()))); \
+	double d1 = (a.type == kInt) ? boost::get<long>(a.val) : boost::get<double>(a.val); \
+	double d2 = (b.type == kInt) ? boost::get<long>(b.val) : boost::get<double>(b.val); \
+	return Expression(kFloat, (d1) op (d2)); \
 })
 
 using namespace std;
@@ -42,7 +38,8 @@ enum ExpressionTypes {
 class Expression;
 class Environment;
 
-typedef unordered_map<string, Expression> EnvMap;
+typedef boost::variant<long, double, string> ValType;
+typedef unordered_map<ValType, Expression, boost::hash<ValType>> EnvMap;
 typedef Expression(*ProcType)(const vector<Expression> &);
 
 Environment *global_env;
@@ -54,10 +51,10 @@ public:
 	vector<Expression> list;
 	ExpressionTypes type;
 	ProcType proc;
-	string val;
+	ValType val;
 
 	Expression(ExpressionTypes type = kSymbol) : type(type), env_(nullptr) {}
-	Expression(ExpressionTypes type, const string &val) : type(type), val(val), env_(nullptr) {}
+	Expression(ExpressionTypes type, const ValType &val) : type(type), val(val), env_(nullptr) {}
 	Expression(ProcType proc) : type(kProc), proc(proc) {}
 	Expression(bool b) : type(kBool), env_(nullptr) {
 		this->val = b ? "#t" : "#f";
@@ -122,13 +119,13 @@ public:
 	}
 	void remove(const string &var) { env_map_.erase(var); }
 
-	EnvMap *find(const string &var) {
-		auto result = env_map_.find(var);
+	EnvMap *find(const ValType &val) {
+		auto result = env_map_.find(val);
 		if (result != env_map_.end()) {
 			return &env_map_;
 		}
 		if (outer_ != nullptr) {
-			return outer_->find(var);
+			return outer_->find(val);
 		}
 		return nullptr;
 	}
@@ -139,8 +136,8 @@ public:
 		}
 	}
 
-	Expression &operator[] (const string &var) {
-		return env_map_[var];
+	Expression &operator[] (const ValType &val) {
+		return env_map_[val];
 	}
 };
 
@@ -154,34 +151,34 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	else if (exp->list.empty()) {
 		return env->find("nil")->at("nil");
 	}
-	else if (exp->list[0].val == "symbol?") {
+	else if (boost::get<string>(exp->list[0].val) == "symbol?") {
 		return (env->find(exp->list[1].val) != nullptr) ? true_sym : false_sym;
 	}
-	else if (exp->list[0].val == "define") {
+	else if (boost::get<string>(exp->list[0].val) == "define") {
 		return (*env)[exp->list[1].val] = eval(&exp->list[2], env);
 	}
-	else if (exp->list[0].val == "set!") {
+	else if (boost::get<string>(exp->list[0].val) == "set!") {
 		return env->find(exp->list[1].val)->at(exp->list[1].val) = eval(&exp->list[2], env);
 	}
-	else if (exp->list[0].val == "quote") {
+	else if (boost::get<string>(exp->list[0].val) == "quote") {
 		return exp->list[1];
 	}
-	else if (exp->list[0].val == "if") {
+	else if (boost::get<string>(exp->list[0].val) == "if") {
 		Expression cond = eval(&exp->list[1], env);
-		return (cond.val == "#t") ? eval(&exp->list[2], env) : eval(&exp->list[3], env);
+		return (boost::get<string>(cond.val) == "#t") ? eval(&exp->list[2], env) : eval(&exp->list[3], env);
 	}
-	else if (exp->list[0].val == "lambda") {
+	else if (boost::get<string>(exp->list[0].val) == "lambda") {
 		exp->type = kLambda;
 		exp->set_env(env);
 		return *exp;
 	}
-	else if (exp->list[0].val == "begin") {
+	else if (boost::get<string>(exp->list[0].val) == "begin") {
 		for (size_t i = 1; i < exp->list.size() - 1; ++i) {
 			eval(&exp->list[i], env);
 		}
 		return eval(&exp->list[exp->list.size() - 1], env);
 	}
-	else if (exp->list[0].val == "show") {
+	else if (boost::get<string>(exp->list[0].val) == "show") {
 		env->show();
 		return nil;
 	}
@@ -229,10 +226,10 @@ Expression atom(const string &token) {
 		return Expression(kBool, token);
 	}
 	else if (regex_match(token, regex("-?\\d+"))) {
-		return Expression(kInt, token);
+		return Expression(kInt, atol(token.c_str()));
 	}
 	else if (regex_match(token, regex("-?\\d+\\.\\d+"))) {
-		return Expression(kFloat, token);
+		return Expression(kFloat, stod(token));
 	}
 	else if (regex_match(token, regex("\"[^\"]*\""))) {
 		return Expression(kString, token);
@@ -277,19 +274,39 @@ Expression proc_div(const vector<Expression> &e) {
 }
 
 Expression proc_greater(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(<));
+	auto &head = e.front();
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
+		if (head.type != i->type || !(head.val < i->val))
+			return false_sym;
+	}
+	return true_sym;
 }
 
 Expression proc_greater_equal(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(<=));
+	auto &head = e.front();
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
+		if (head.type != i->type || !(head.val <= i->val))
+			return false_sym;
+	}
+	return true_sym;
 }
 
 Expression proc_less(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(>));
+	auto &head = e.front();
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
+		if (head.type != i->type || !(head.val > i->val))
+			return false_sym;
+	}
+	return true_sym;
 }
 
 Expression proc_less_equal(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_COMP_OP(>=));
+	auto &head = e.front();
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
+		if (head.type != i->type || !(head.val >= i->val))
+			return false_sym;
+	}
+	return true_sym;
 }
 
 Expression proc_equal(const vector<Expression> &e) {
@@ -303,10 +320,10 @@ Expression proc_equal(const vector<Expression> &e) {
 
 Expression proc_abs(const vector<Expression> &e) {
 	if (e.front().type == kInt) {
-		long n = atol(e.front().val.c_str());
+		long n = boost::get<long>(e.front().val);
 		return Expression(kInt, to_string(n > 0 ? n : -n));
 	}
-	double d = stod(e.front().val.c_str());
+	double d = boost::get<double>(e.front().val);
 	return Expression(kFloat, to_string(d > 0 ? d : -d));
 }
 
@@ -339,7 +356,7 @@ Expression proc_listp(const vector<Expression> &e) {
 
 Expression proc_not(const vector<Expression> &e) {
 	if (e[0].type == kBool) {
-		return (e[0].val == "#f") ? true_sym : false_sym;
+		return (boost::get<string>(e[0].val) == "#f") ? true_sym : false_sym;
 	}
 	return nil;
 }
@@ -348,11 +365,11 @@ Expression proc_max(const vector<Expression> &e) {
 	Expression max(e[0]);
 	for (auto &i : e) {
 		if (max.type == i.type == kInt) {
-			if (atol(max.val.c_str()) < atol(i.val.c_str())) {
+			if (boost::get<long>(max.val) < boost::get<long>(i.val)) {
 				max.val = i.val;
 			}
 		}
-		else if (stod(max.val.c_str()) < stod(i.val.c_str())) {
+		else if (boost::get<double>(max.val) < boost::get<double>(i.val)) {
 			max.val = i.val;
 			if (max.type == kInt) {
 				max.type = kFloat;
@@ -369,11 +386,11 @@ Expression proc_min(const vector<Expression> &e) {
 	Expression min(e[0]);
 	for (auto &i : e) {
 		if (min.type == i.type == kInt) {
-			if (atol(min.val.c_str()) > atol(i.val.c_str())) {
+			if (boost::get<long>(min.val) > boost::get<long>(i.val)) {
 				min.val = i.val;
 			}
 		}
-		else if (stod(min.val.c_str()) > stod(i.val.c_str())) {
+		else if (boost::get<double>(min.val) > boost::get<double>(i.val)) {
 			min.val = i.val;
 			if (min.type == kInt) {
 				min.type = kFloat;
@@ -396,21 +413,21 @@ Expression proc_numberp(const vector<Expression> &e) {
 
 Expression proc_floor(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
-		return Expression(kFloat, to_string(floor(stod(e[0].val))));
+		return Expression(kFloat, to_string(floor(boost::get<double>(e[0].val))));
 	}
 	return nil;
 }
 
 Expression proc_round(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
-		return Expression(kFloat, to_string(round(stod(e[0].val))));
+		return Expression(kFloat, to_string(round(boost::get<double>(e[0].val))));
 	}
 	return nil;
 }
 
 Expression proc_ceil(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
-		return Expression(kFloat, to_string(ceil(stod(e[0].val))));
+		return Expression(kFloat, to_string(ceil(boost::get<double>(e[0].val))));
 	}
 	return nil;
 }
@@ -443,11 +460,11 @@ Expression proc_filter(const vector<Expression> &e) {
 	for (auto &i : filter_list.list) {
 		vector<Expression> args = { eval(&i, e[0].get_env()) };
 		if (proc.type == kLambda) {
-			if (eval(&proc.list[2], new Environment(proc.list[1].list, args, proc.get_env())).val == "#t")
+			if (boost::get<string>(eval(&proc.list[2], new Environment(proc.list[1].list, args, proc.get_env())).val) == "#t")
 				exp.list.push_back(i);
 		}
 		else if (proc.type == kProc) {
-			if (proc.proc(args).val == "#t")
+			if (boost::get<string>(proc.proc(args).val) == "#t")
 				exp.list.push_back(i);
 		}
 	}
@@ -476,7 +493,7 @@ Expression proc_pairp(const vector<Expression> &e) {
 
 Expression proc_list_ref(const vector<Expression> &e) {
 	if (e[0].type == kList && e[1].type == kInt) {
-		long n = atol(e[1].val.c_str());
+		long n = boost::get<long>(e[1].val);
 		if (e[0].list.size() > n && n >= 0) {
 			return e[0].list[n];
 		}
