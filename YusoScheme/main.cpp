@@ -11,15 +11,28 @@
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 
-#define DEFINE_PROC_OP(op) \
-([](const Expression &a, const Expression &b)->Expression { \
-	if (a.type == kInt && b.type == kInt) { \
-		return Expression(kInt, (boost::get<long>(a.val)) op (boost::get<long>(b.val))); \
+#define DEFINE_PROC_OP(proc_name, op) \
+Expression proc_name(const vector<Expression> &e) { \
+	return accumulate(e.begin() + 1, e.end(), e.at(0), [](const Expression &a, const Expression &b)->Expression { \
+		if (a.type == kInt && b.type == kInt) { \
+			return Expression(kInt, (boost::get<long>(a.val)) op (boost::get<long>(b.val))); \
+		} \
+		double d1 = (a.type == kInt) ? boost::get<long>(a.val) : boost::get<double>(a.val); \
+		double d2 = (b.type == kInt) ? boost::get<long>(b.val) : boost::get<double>(b.val); \
+		return Expression(kFloat, (d1) op (d2)); \
+	}); \
+}
+
+#define DEFINE_PROC_COMP_OP(proc_name, op) \
+Expression proc_name(const vector<Expression> &e) { \
+	auto &head = e.front(); \
+	for (auto &i = e.begin() + 1; i != e.end(); ++i) { \
+		if (head.type != i->type || !(head.val op i->val)) \
+			return false_sym; \
 	} \
-	double d1 = (a.type == kInt) ? boost::get<long>(a.val) : boost::get<double>(a.val); \
-	double d2 = (b.type == kInt) ? boost::get<long>(b.val) : boost::get<double>(b.val); \
-	return Expression(kFloat, (d1) op (d2)); \
-})
+	return true_sym; \
+}
+
 
 using namespace std;
 
@@ -257,66 +270,16 @@ Expression read_from_tokens(list<string> &tokens) {
 	return atom(token);
 }
 
-Expression proc_add(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(+));
-}
+DEFINE_PROC_OP(proc_add, +)
+DEFINE_PROC_OP(proc_sub, -)
+DEFINE_PROC_OP(proc_mul, *)
+DEFINE_PROC_OP(proc_div, *)
 
-Expression proc_sub(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(-));
-}
-
-Expression proc_mul(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(*));
-}
-
-Expression proc_div(const vector<Expression> &e) {
-	return accumulate(e.begin() + 1, e.end(), e.at(0), DEFINE_PROC_OP(/));
-}
-
-Expression proc_greater(const vector<Expression> &e) {
-	auto &head = e.front();
-	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.type != i->type || !(head.val < i->val))
-			return false_sym;
-	}
-	return true_sym;
-}
-
-Expression proc_greater_equal(const vector<Expression> &e) {
-	auto &head = e.front();
-	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.type != i->type || !(head.val <= i->val))
-			return false_sym;
-	}
-	return true_sym;
-}
-
-Expression proc_less(const vector<Expression> &e) {
-	auto &head = e.front();
-	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.type != i->type || !(head.val > i->val))
-			return false_sym;
-	}
-	return true_sym;
-}
-
-Expression proc_less_equal(const vector<Expression> &e) {
-	auto &head = e.front();
-	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.type != i->type || !(head.val >= i->val))
-			return false_sym;
-	}
-	return true_sym;
-}
-
-Expression proc_equal(const vector<Expression> &e) {
-	auto &head = e.front();
-	for (auto &i = e.begin() + 1; i != e.end(); ++i) {
-		if (head.type != i->type || head.val != i->val)
-			return false_sym;
-	}
-	return true_sym;
-}
+DEFINE_PROC_COMP_OP(proc_greater, <)
+DEFINE_PROC_COMP_OP(proc_greater_equal, <=)
+DEFINE_PROC_COMP_OP(proc_less, >)
+DEFINE_PROC_COMP_OP(proc_less_equal, >=)
+DEFINE_PROC_COMP_OP(proc_equal, ==)
 
 Expression proc_abs(const vector<Expression> &e) {
 	if (e.front().type == kInt) {
