@@ -327,12 +327,14 @@ Expression proc_not(const vector<Expression> &e) {
 Expression proc_max(const vector<Expression> &e) {
 	Expression max(e[0]);
 	for (auto &i : e) {
-		if (max.type == i.type == kInt) {
-			if (boost::get<long>(max.val) < boost::get<long>(i.val)) {
+		double d1 = (max.type == kInt) ? boost::get<long>(max.val) : boost::get<double>(max.val);
+		double d2 = (i.type == kInt) ? boost::get<long>(i.val) : boost::get<double>(i.val);
+		if (max.type == kInt && i.type == kInt) {
+			if (d1 < d2) {
 				max.val = i.val;
 			}
 		}
-		else if (boost::get<double>(max.val) < boost::get<double>(i.val)) {
+		else if (d1 < d2) {
 			max.val = i.val;
 			if (max.type == kInt) {
 				max.type = kFloat;
@@ -348,12 +350,14 @@ Expression proc_max(const vector<Expression> &e) {
 Expression proc_min(const vector<Expression> &e) {
 	Expression min(e[0]);
 	for (auto &i : e) {
-		if (min.type == i.type == kInt) {
-			if (boost::get<long>(min.val) > boost::get<long>(i.val)) {
+		double d1 = (min.type == kInt) ? boost::get<long>(min.val) : boost::get<double>(min.val);
+		double d2 = (i.type == kInt) ? boost::get<long>(i.val) : boost::get<double>(i.val);
+		if (min.type == kInt && i.type == kInt) {
+			if (d1 > d2) {
 				min.val = i.val;
 			}
 		}
-		else if (boost::get<double>(min.val) > boost::get<double>(i.val)) {
+		else if (d1 > d2) {
 			min.val = i.val;
 			if (min.type == kInt) {
 				min.type = kFloat;
