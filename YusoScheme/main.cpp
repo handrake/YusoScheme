@@ -156,7 +156,14 @@ public:
 
 Expression eval(Expression *exp, Environment *env = global_env) {
 	if (exp->type == kSymbol) {
-		return env->find(exp->val)->at(exp->val);
+		EnvMap *new_env = env->find(exp->val);
+		if (new_env != nullptr) {
+			return new_env->at(exp->val);
+		}
+		else {
+			cerr << "Undefined symbol " << boost::get<string>(exp->val) << endl;
+			return nil;
+		}
 	}
 	else if (exp->type != kList) {
 		return *exp;
