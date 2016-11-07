@@ -96,7 +96,7 @@ public:
 
 const Expression true_sym(kBool, "#t");
 const Expression false_sym(kBool, "#f");
-const Expression nil(kNil, "nil");
+const Expression nil_sym(kNil, "nil");
 
 Expression operator==(const Expression &a, const Expression &b) {
 	if (a.type == b.type && a.val == b.val)
@@ -152,7 +152,7 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		}
 		else {
 			cerr << "Undefined symbol " << exp->val << endl;
-			return nil;
+			return nil_sym;
 		}
 		return env->find(exp->val)->at(exp->val);
 	}
@@ -160,7 +160,7 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 		return *exp;
 	}
 	else if (exp->list.empty()) {
-		return env->find("nil")->at("nil");
+		return env->find("nil_sym")->at("nil");
 	}
 	else if (exp->list[0].val == "symbol?") {
 		return (env->find(exp->list[1].val) != nullptr) ? true_sym : false_sym;
@@ -191,7 +191,7 @@ Expression eval(Expression *exp, Environment *env = global_env) {
 	}
 	else if (exp->list[0].val == "show") {
 		env->show();
-		return nil;
+		return nil_sym;
 	}
 	else {
 		Expression proc(eval(&exp->list[0], env));
@@ -330,7 +330,7 @@ Expression proc_car(const vector<Expression> &e) {
 
 Expression proc_cdr(const vector<Expression> &e) {
 	if (e[0].list.size() < 2)
-		return nil;
+		return nil_sym;
 	Expression exp(kList);
 	exp.list = e[0].list;
 	exp.list.erase(exp.list.begin());
@@ -349,7 +349,7 @@ Expression proc_not(const vector<Expression> &e) {
 	if (e[0].type == kBool) {
 		return (e[0].val == "#f") ? true_sym : false_sym;
 	}
-	return nil;
+	return nil_sym;
 }
 
 Expression proc_max(const vector<Expression> &e) {
@@ -406,21 +406,21 @@ Expression proc_floor(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
 		return Expression(kFloat, to_string(floor(stod(e[0].val))));
 	}
-	return nil;
+	return nil_sym;
 }
 
 Expression proc_round(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
 		return Expression(kFloat, to_string(round(stod(e[0].val))));
 	}
-	return nil;
+	return nil_sym;
 }
 
 Expression proc_ceil(const vector<Expression> &e) {
 	if (e[0].type == kFloat) {
 		return Expression(kFloat, to_string(ceil(stod(e[0].val))));
 	}
-	return nil;
+	return nil_sym;
 }
 
 Expression proc_procedurep(const vector<Expression> &e) {
@@ -489,7 +489,7 @@ Expression proc_list_ref(const vector<Expression> &e) {
 			return e[0].list[n];
 		}
 	}
-	return nil;
+	return nil_sym;
 }
 
 Expression proc_reverse(const vector<Expression> &e) {
@@ -507,7 +507,7 @@ Expression parse(string &program) {
 Environment *standard_env() {
 	Environment *env = new Environment();
 
-	env->update("nil", nil);
+	env->update("nil", nil_sym);
 	env->update("+", &proc_add);
 	env->update("-", &proc_sub);
 	env->update("*", &proc_mul);
