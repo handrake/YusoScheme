@@ -355,7 +355,7 @@ Expression proc_not(const vector<Expression> &e) {
 Expression proc_max(const vector<Expression> &e) {
 	Expression max(e[0]);
 	for (auto &i : e) {
-		if (max.type == i.type == kInt) {
+		if (max.type == kInt && i.type == kInt) {
 			if (atol(max.val.c_str()) < atol(i.val.c_str())) {
 				max.val = i.val;
 			}
@@ -376,7 +376,7 @@ Expression proc_max(const vector<Expression> &e) {
 Expression proc_min(const vector<Expression> &e) {
 	Expression min(e[0]);
 	for (auto &i : e) {
-		if (min.type == i.type == kInt) {
+		if (min.type == kInt && i.type == kInt) {
 			if (atol(min.val.c_str()) > atol(i.val.c_str())) {
 				min.val = i.val;
 			}
