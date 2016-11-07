@@ -146,6 +146,14 @@ public:
 
 Expression eval(Expression *exp, Environment *env = global_env) {
 	if (exp->type == kSymbol) {
+		EnvMap *new_env = env->find(exp->val);
+		if (new_env != nullptr) {
+			return new_env->at(exp->val);
+		}
+		else {
+			cerr << "Undefined symbol " << exp->val << endl;
+			return nil;
+		}
 		return env->find(exp->val)->at(exp->val);
 	}
 	else if (exp->type != kList) {
